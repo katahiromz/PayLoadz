@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <string>
 #include <map>
+#include <algorithm>
 #include "../hackKit/hackKit.h"
 #include <strsafe.h>
 
@@ -238,6 +239,10 @@ BOOL OnInitDialog(HWND hwnd, HWND hwndFocus, LPARAM lParam)
 {
     g_hMainWnd = hwnd;
     DragAcceptFiles(hwnd, TRUE);
+
+    // TODO: Enable buttons
+    safeEnableWindow(GetDlgItem(hwnd, psh3), FALSE);
+    safeEnableWindow(GetDlgItem(hwnd, psh4), FALSE);
 
     // Get payloads
     TCHAR szPath[MAX_PATH];
@@ -571,6 +576,148 @@ void OnRunInjected(HWND hwnd)
     }
 }
 
+BOOL doInject32(HWND hwnd, DWORD pid, BOOL bInject)
+{
+    std::vector<ENTRY> payloads;
+    getCheckedPayloads(payloads);
+
+    TCHAR szPath[MAX_PATH];
+    getSameFolderPathName(szPath, TEXT("injector32.exe"));
+    tstring_t cmdline = TEXT("\"");
+    cmdline += szPath;
+    cmdline += TEXT("\"");
+
+    for (auto& entry : payloads)
+    {
+        if (entry.pathname32.size())
+        {
+            cmdline += TEXT(" --payload \"");
+            cmdline += entry.pathname32;
+            cmdline += TEXT("\"");
+        }
+    }
+
+    if (bInject)
+        cmdline += TEXT(" --inject ");
+    else
+        cmdline += TEXT(" --uninject ");
+
+#ifdef UNICODE
+    cmdline += std::to_wstring(pid);
+#else
+    cmdline += std::to_string(pid);
+#endif
+
+    STARTUPINFO si = { sizeof(si) };
+    si.dwFlags |= STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+
+    PROCESS_INFORMATION pi = { NULL };
+    BOOL ret = startProcess(cmdline.c_str(), si, pi, CREATE_NEW_CONSOLE);
+
+    if (ret)
+    {
+        WaitForSingleObject(pi.hProcess, INFINITE);
+
+        DWORD dwExitCode;
+        GetExitCodeProcess(pi.hProcess, &dwExitCode);
+        if ((RET)dwExitCode != RET_OK)
+        {
+            ret = FALSE;
+            errorBox(hwnd, (RET)dwExitCode);
+        }
+
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+    else
+    {
+        // TODO: Error message
+    }
+
+    return ret;
+}
+
+BOOL doInject64(HWND hwnd, DWORD pid, BOOL bInject)
+{
+    std::vector<ENTRY> payloads;
+    getCheckedPayloads(payloads);
+
+    TCHAR szPath[MAX_PATH];
+    getSameFolderPathName(szPath, TEXT("injector64.exe"));
+    tstring_t cmdline = TEXT("\"");
+    cmdline += szPath;
+    cmdline += TEXT("\"");
+
+    for (auto& entry : payloads)
+    {
+        if (entry.pathname64.size())
+        {
+            cmdline += TEXT(" --payload \"");
+            cmdline += entry.pathname64;
+            cmdline += TEXT("\"");
+        }
+    }
+
+    if (bInject)
+        cmdline += TEXT(" --inject ");
+    else
+        cmdline += TEXT(" --uninject ");
+
+#ifdef UNICODE
+    cmdline += std::to_wstring(pid);
+#else
+    cmdline += std::to_string(pid);
+#endif
+
+    STARTUPINFO si = { sizeof(si) };
+    si.dwFlags |= STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+
+    PROCESS_INFORMATION pi = { NULL };
+    BOOL ret = startProcess(cmdline.c_str(), si, pi, CREATE_NEW_CONSOLE);
+
+    if (ret)
+    {
+        WaitForSingleObject(pi.hProcess, INFINITE);
+
+        DWORD dwExitCode;
+        GetExitCodeProcess(pi.hProcess, &dwExitCode);
+        if ((RET)dwExitCode != RET_OK)
+        {
+            ret = FALSE;
+            errorBox(hwnd, (RET)dwExitCode);
+        }
+
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+    }
+    else
+    {
+        // TODO: Error message
+    }
+
+    return ret;
+}
+
+void OnInjectPayloads(HWND hwnd)
+{
+    DWORD pid = GetDlgItemInt(hwnd, edt1, NULL, FALSE);
+    if (isProcessIDWin64(pid))
+        doInject64(hwnd, pid, TRUE);
+    else if (isProcessIDWin32(pid))
+        doInject32(hwnd, pid, TRUE);
+}
+
+void OnUninjectPayloads(HWND hwnd)
+{
+    DWORD pid = GetDlgItemInt(hwnd, edt1, NULL, FALSE);
+    if (isProcessIDWin64(pid))
+        doInject64(hwnd, pid, FALSE);
+    else if (isProcessIDWin32(pid))
+        doInject32(hwnd, pid, FALSE);
+}
+
 void OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
 {
     switch (id)
@@ -601,6 +748,12 @@ void OnCommand(HWND hwnd, int id, HWND hwndCtl, UINT codeNotify)
             OnSelOrCheckChange(hwnd);
             break;
         }
+        break;
+    case psh5:
+        OnInjectPayloads(hwnd);
+        break;
+    case psh6:
+        OnUninjectPayloads(hwnd);
         break;
     case psh7:
         OnBrowse(hwnd);
