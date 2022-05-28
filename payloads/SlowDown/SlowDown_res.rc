@@ -1,0 +1,10 @@
+#include <windows.h>
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+STRINGTABLE
+{
+    100, "PayLordz"
+    101, "Slow Down the World ver.0.0"
+    102, "SlowDown"
+}
