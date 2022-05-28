@@ -54,6 +54,5 @@ add_subdirectory(payloads)
 add_subdirectory(PayLordz)
 add_subdirectory(injector)
 add_subdirectory(target)
-add_subdirectory(target2_)
 
 ##############################################################################
